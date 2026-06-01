@@ -1,0 +1,25 @@
+services:
+  superhome-worker:
+    image: ghcr.io/superhome-vision/superhome-worker:x.x.x # fill in the correct version
+    network_mode: host
+    restart: unless-stopped
+
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+
+    environment:
+      SUPERHOME_ROLE: worker
+      SUPERHOME_MASTER_HOST: ""         # leave empty for mDNS auto-discovery, or set "host:port" explicitly
+
+      SUPERHOME_ENROLLMENT_PIN: "" 
+
+      # Set to the 8-char fingerprint shown in Hub -> Cluster next to the PIN.
+      SUPERHOME_MASTER_FINGERPRINT: ""  # e.g. "a1b2c3d4" REQUIRED for first enrollment
+
+    volumes:
+      - superhome-worker-data:/data    
+      - /etc/machine-id:/etc/machine-id:ro
+
+volumes:
+  superhome-worker-data:
