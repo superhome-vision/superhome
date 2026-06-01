@@ -1,0 +1,90 @@
+name: "Superhome"
+version: "0.0.13"
+slug: "superhome"
+description: "Gesture-controlled home automation using your existing RTSP camera. 100% local, no cloud, no microphone."
+url: "https://github.com/superhome-vision/superhome"
+
+backup_exclude:
+  - ".license"
+  - ".cluster"
+  - ".api_token"
+  - ".api_token.enc"
+  - ".api_tokens"
+  - "config.ini"
+
+arch:
+  - aarch64
+  - amd64
+
+image: "ghcr.io/superhome-vision/superhome-app"
+
+host_network: true
+
+hassio_api: true
+homeassistant_api: true
+
+ingress: true
+ingress_port: 8765
+ingress_stream: true
+
+panel_icon: mdi:hand-wave
+panel_title: Superhome
+
+# -----------------------------------------------------------------------
+# User-configurable options
+# -----------------------------------------------------------------------
+# Top-level keys are the basic setup (license + camera stream).
+# The "advanced" group collects everything else and is shown collapsed.
+# Other runtime parameters (selection entities, gesture actions, stream
+# preferences, system mode) are configured from the Superhome hub UI.
+# -----------------------------------------------------------------------
+options:
+  # License key from the Superhome dashboard (format: SH-XXXX-XXXX-XXXX).
+  license_key: ""
+
+  # RTSP camera URL (e.g. rtsp://user:pass@192.168.1.100:554/stream1)
+  rtsp_url: ""
+
+  advanced:
+    # "standalone": inference runs on this add-on (default).
+    # "master-worker": inference pushed to a remote worker; this add-on is a pure hub.
+    inference_mode: "standalone"
+
+    # --- camera ---
+    downscale: true
+    downscale_factor: 2
+
+    # --- inference (palm_1280) ---
+    confidence_threshold: 0.6
+    selection_trigger_time: 0.5
+    selection_cache_time: 1.5
+    selection_cycle_mode: "cyclic"
+    selection_hysteresis_time: 2.0
+    selection_entity_switch_time: 2
+    selection_confidence_threshold: 0.5
+
+    # --- gesture_control ---
+    safety_trigger_threshold: 0.3
+    dimmer_interval: 0.9
+    gesture_level_hysteresis_time: 2.0
+
+schema:
+  license_key: str
+  rtsp_url: str
+  advanced:
+    inference_mode: "list(standalone|master-worker)"
+    # --- camera ---
+    downscale: bool
+    downscale_factor: int
+    # --- inference ---
+    confidence_threshold: float
+    selection_trigger_time: float
+    selection_cache_time: float
+    selection_cycle_mode: "list(cyclic|linear)"
+    selection_hysteresis_time: float
+    selection_entity_switch_time: int
+    selection_confidence_threshold: float
+    # --- gesture_control ---
+    safety_trigger_threshold: float
+    dimmer_interval: float
+    gesture_level_hysteresis_time: float
