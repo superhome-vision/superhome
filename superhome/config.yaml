@@ -1,5 +1,5 @@
 name: "Superhome"
-version: "0.0.13"
+version: "0.0.14"
 slug: "superhome"
 description: "Gesture-controlled home automation using your existing RTSP camera. 100% local, no cloud, no microphone."
 url: "https://github.com/superhome-vision/superhome"
