@@ -1,0 +1,529 @@
+substitutions:
+  device_name: guition-35
+  friendly_name: Guition 3.5
+
+esphome:
+  name: "${device_name}"
+  friendly_name: "${friendly_name}"
+  platformio_options:
+    upload_speed: 921600
+    board_build.flash_mode: dio
+    board_build.f_flash: 80000000L
+    board_build.f_cpu: 240000000L
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  framework:
+    type: esp-idf
+    sdkconfig_options:
+      COMPILER_OPTIMIZATION_SIZE: y
+      CONFIG_ESP32S3_DEFAULT_CPU_FREQ_240: y
+      CONFIG_ESP32S3_DATA_CACHE_64KB: y
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: y
+      CONFIG_SPIRAM_FETCH_INSTRUCTIONS: y
+      CONFIG_SPIRAM_RODATA: y
+
+logger:
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  manual_ip:
+    static_ip: 192.168.1.123
+    gateway: 192.168.1.1
+    subnet: 255.255.255.0
+  ap:
+    ssid: "Guition Fallback"
+    password: "guition35"
+
+api:
+  id: ha_api
+
+ota:
+  - platform: esphome
+
+psram:
+  mode: octal
+  speed: 80MHz
+
+globals:
+  - id: current_mode
+    type: std::string
+    restore_value: no
+    initial_value: '"waiting"'
+  - id: time_step_s
+    type: float
+    restore_value: no
+    initial_value: '3.0'
+  - id: anim_start_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+  - id: last_step_val
+    type: std::string
+    restore_value: no
+    initial_value: '""'
+  - id: pending_progress_pct
+    type: int
+    restore_value: no
+    initial_value: '0'
+
+time:
+  - platform: homeassistant
+    id: ha_time
+    timezone: Europe/Rome
+
+# ── Entity HA ────────────────────────────────────────────────────────────────
+
+text_sensor:
+  - platform: homeassistant
+    id: sensor_mode
+    entity_id: sensor.superhome_mode
+    on_value:
+      then:
+        - lambda: |-
+            std::string mode = x;
+            id(current_mode) = mode;
+
+            if (mode == "waiting") {
+              // Schermo nero, backlight off
+              auto call = id(backlight).turn_on();
+              call.set_brightness(0.0);
+              call.set_transition_length(500);
+              call.perform();
+              // Nascondi tutto
+              lv_obj_add_flag(id(circle_detection), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(circle_action), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(arc_progress), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(arc_pending), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_step_number), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_step_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_device_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_entity_icon), LV_OBJ_FLAG_HIDDEN);
+
+            } else if (mode == "pending") {
+              // Piccolo cerchio al centro — trigger time in corso
+              auto call = id(backlight).turn_on();
+              call.set_brightness(1.0);
+              call.set_transition_length(0);
+              call.perform();
+              lv_obj_add_flag(id(circle_detection), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(circle_action), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(arc_progress), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(arc_pending), LV_OBJ_FLAG_HIDDEN);
+              lv_arc_set_value(id(arc_pending), id(pending_progress_pct));
+              lv_obj_add_flag(id(lbl_step_number), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_step_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_device_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_entity_icon), LV_OBJ_FLAG_HIDDEN);
+
+            } else if (mode == "detection") {
+              // Backlight on istantanea, cerchio rosso + nome device
+              auto call = id(backlight).turn_on();
+              call.set_brightness(1.0);
+              call.set_transition_length(0);
+              call.perform();
+              lv_obj_clear_flag(id(circle_detection), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(circle_action), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(arc_progress), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(arc_pending), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_step_number), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_step_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(lbl_device_name), LV_OBJ_FLAG_HIDDEN);
+              // Logo dell'entità target al centro del cerchio rosso
+              lv_obj_clear_flag(id(lbl_entity_icon), LV_OBJ_FLAG_HIDDEN);
+
+            } else if (mode == "selecting") {
+              // Cerchio bianco + progress arc + nome device + logo entità.
+              // Il numero del dispositivo va in ALTO A SINISTRA (non al centro).
+              auto call = id(backlight).turn_on();
+              call.set_brightness(1.0);
+              call.set_transition_length(0);
+              call.perform();
+              lv_obj_add_flag(id(circle_detection), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(circle_action), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(arc_progress), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(arc_pending), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(lbl_step_number), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_align(id(lbl_step_number), LV_ALIGN_TOP_LEFT, 14, 10);
+              lv_obj_add_flag(id(lbl_step_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(lbl_device_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(lbl_entity_icon), LV_OBJ_FLAG_HIDDEN);
+              // Reset animazione
+              id(anim_start_ms) = millis();
+              // Reset arco a 0
+              lv_arc_set_value(id(arc_progress), 0);
+
+            } else if (mode == "dimming") {
+              // Dimming INVARIATO: numero al centro, nessun logo.
+              auto call = id(backlight).turn_on();
+              call.set_brightness(1.0);
+              call.set_transition_length(0);
+              call.perform();
+              lv_obj_add_flag(id(circle_detection), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(circle_action), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(arc_progress), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(arc_pending), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(lbl_step_number), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_align(id(lbl_step_number), LV_ALIGN_CENTER, 0, 0);
+              lv_obj_add_flag(id(lbl_step_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_clear_flag(id(lbl_device_name), LV_OBJ_FLAG_HIDDEN);
+              lv_obj_add_flag(id(lbl_entity_icon), LV_OBJ_FLAG_HIDDEN);
+              // Reset animazione
+              id(anim_start_ms) = millis();
+              // Reset arco a 0
+              lv_arc_set_value(id(arc_progress), 0);
+            }
+
+  - platform: homeassistant
+    id: sensor_step
+    entity_id: sensor.superhome_step
+    on_value:
+      then:
+        - lambda: |-
+            id(last_step_val) = x;
+            lv_label_set_text(id(lbl_step_number), x.c_str());
+            std::string mode = id(current_mode);
+            if (mode == "dimming" || mode == "selecting") {
+              id(anim_start_ms) = millis();
+              lv_arc_set_value(id(arc_progress), 0);
+            }
+
+  - platform: homeassistant
+    id: sensor_device_name
+    entity_id: sensor.superhome_device_name
+    on_value:
+      then:
+        - lambda: |-
+            lv_label_set_text(id(lbl_device_name), x.c_str());
+
+  - platform: homeassistant
+    id: sensor_entity_icon
+    entity_id: sensor.superhome_entity_icon
+    on_value:
+      then:
+        - lambda: |-
+            // Carattere glifo MDI dell'entità corrente ("" = nessun logo).
+            lv_label_set_text(id(lbl_entity_icon), x.c_str());
+            std::string m = id(current_mode);
+            if (!x.empty() && (m == "detection" || m == "selecting")) {
+              lv_obj_clear_flag(id(lbl_entity_icon), LV_OBJ_FLAG_HIDDEN);
+            } else {
+              lv_obj_add_flag(id(lbl_entity_icon), LV_OBJ_FLAG_HIDDEN);
+            }
+
+sensor:
+  - platform: homeassistant
+    id: sensor_time_step
+    entity_id: sensor.superhome_time_step
+    on_value:
+      then:
+        - lambda: |-
+            id(time_step_s) = x;
+
+  - platform: homeassistant
+    id: sensor_pending_progress
+    entity_id: sensor.superhome_pending_progress
+    on_value:
+      then:
+        - lambda: |-
+            int pct = (int)x;
+            if (pct < 0) pct = 0;
+            if (pct > 100) pct = 100;
+            id(pending_progress_pct) = pct;
+            // Aggiorna l'arco solo se siamo in pending
+            if (id(current_mode) == "pending") {
+              lv_arc_set_value(id(arc_pending), pct);
+            }
+
+# ── Hardware ─────────────────────────────────────────────────────────────────
+
+spi:
+  - type: quad
+    clk_pin: 47
+    data_pins: [21, 48, 40, 39]
+
+i2c:
+  - sda: 4
+    scl: 8
+
+output:
+  - id: gpio_backlight_pwm
+    platform: ledc
+    pin: 1
+
+light:
+  - id: backlight
+    name: Backlight
+    platform: monochromatic
+    output: gpio_backlight_pwm
+    restore_mode: RESTORE_AND_OFF
+    default_transition_length: 0ms
+
+display:
+  - id: main_display
+    platform: mipi_spi
+    model: JC3248W535
+    data_rate: 40MHz
+    update_interval: never
+    auto_clear_enabled: false
+
+touchscreen:
+  - id: main_touchscreen
+    platform: axs15231
+
+# ── Interval: aggiorna progress arc ──────────────────────────────────────────
+
+interval:
+  - interval: 50ms
+    then:
+      - lambda: |-
+          std::string mode = id(current_mode);
+          if (mode != "dimming" && mode != "selecting") return;
+
+          float elapsed = (millis() - id(anim_start_ms)) / 1000.0f;
+          float ts = id(time_step_s);
+          if (ts <= 0) ts = 1.0f;
+
+          float pct = elapsed / ts;
+          if (pct > 1.0f) pct = 1.0f;
+
+          // lv_arc range 0-100
+          int arc_val = (int)(pct * 100.0f);
+          lv_arc_set_value(id(arc_progress), arc_val);
+
+# ── Font icone MDI ─────────────────────────────────────────────────────────────
+# Subset curato di Material Design Icons (webfont 7.4.47), disegnato dentro al
+# cerchio in detection/selection. I codepoint qui DEVONO combaciare 1:1 con
+# MDI_GLYPHS in src/entity_icon.py (stessa versione MDI 7.4.47). Se aggiorni la
+# versione MDI o aggiungi/togli icone, aggiorna entrambi i file.
+font:
+  - file:
+      type: web
+      url: "https://github.com/Templarian/MaterialDesign-Webfont/raw/v7.4.47/fonts/materialdesignicons-webfont.ttf"
+    id: mdi_icon
+    size: 120   # ~120px: lascia margine nero tra logo e bordo del cerchio (Ø interno ~220)
+    bpp: 4
+    glyphs:
+      - "\U000F0335"  # lightbulb
+      - "\U000F1253"  # lightbulb-group
+      - "\U000F06E8"  # lightbulb-on
+      - "\U000F06E9"  # lightbulb-on-outline
+      - "\U000F0769"  # ceiling-light
+      - "\U000F06B5"  # lamp
+      - "\U000F08DD"  # floor-lamp
+      - "\U000F07D6"  # led-strip
+      - "\U000F1051"  # led-strip-variant
+      - "\U000F091D"  # wall-sconce-flat
+      - "\U000F095F"  # desk-lamp
+      - "\U000F0427"  # power-socket
+      - "\U000F07E7"  # power-socket-eu
+      - "\U000F06A5"  # power-plug
+      - "\U000F1425"  # power-plug-outline
+      - "\U000F0521"  # toggle-switch
+      - "\U000F0522"  # toggle-switch-off
+      - "\U000F0A1A"  # toggle-switch-outline
+      - "\U000F097E"  # light-switch
+      - "\U000F0210"  # fan
+      - "\U000F1797"  # ceiling-fan
+      - "\U000F001B"  # air-conditioner
+      - "\U000F0D44"  # air-purifier
+      - "\U000F0438"  # radiator
+      - "\U000F0238"  # fire
+      - "\U000F1A43"  # heat-pump
+      - "\U000F0393"  # thermostat
+      - "\U000F050F"  # thermometer
+      - "\U000F058E"  # water-percent
+      - "\U000F111C"  # window-shutter
+      - "\U000F00AC"  # blinds
+      - "\U000F1A2B"  # blinds-horizontal
+      - "\U000F1846"  # curtains
+      - "\U000F1A6B"  # roller-shade
+      - "\U000F11DB"  # window-closed-variant
+      - "\U000F11DC"  # window-open-variant
+      - "\U000F06D9"  # garage
+      - "\U000F06DA"  # garage-open
+      - "\U000F0299"  # gate
+      - "\U000F116A"  # gate-open
+      - "\U000F081A"  # door
+      - "\U000F081C"  # door-open
+      - "\U000F033E"  # lock
+      - "\U000F0FC6"  # lock-open-variant
+      - "\U000F0599"  # weather-sunny
+      - "\U000F0594"  # weather-night
+      - "\U000F0595"  # weather-partly-cloudy
+      - "\U000F0590"  # weather-cloudy
+      - "\U000F0596"  # weather-pouring
+      - "\U000F0502"  # television
+      - "\U000F0379"  # monitor
+      - "\U000F04C3"  # speaker
+      - "\U000F075A"  # music
+      - "\U000F057E"  # volume-high
+      - "\U000F0118"  # cast
+      - "\U000F0454"  # remote
+      - "\U000F0EC5"  # remote-tv
+      - "\U000F0290"  # fridge
+      - "\U000F072A"  # washing-machine
+      - "\U000F0AAC"  # dishwasher
+      - "\U000F109F"  # coffee-maker
+      - "\U000F0C99"  # microwave
+      - "\U000F04DE"  # stove
+      - "\U000F070D"  # robot-vacuum
+      - "\U000F058F"  # water-pump
+      - "\U000F0F92"  # water-boiler
+      - "\U000F1066"  # valve
+      - "\U000F05FA"  # kettle
+      - "\U000F0D91"  # motion-sensor
+      - "\U000F1502"  # water-alert
+      - "\U000F0392"  # smoke-detector
+      - "\U000F0647"  # gas-cylinder
+      - "\U000F04C5"  # speedometer
+      - "\U000F0425"  # power
+      - "\U000F0241"  # flash
+      - "\U000F0079"  # battery
+      - "\U000F140B"  # lightning-bolt
+      - "\U000F0A72"  # solar-power
+      - "\U000F03D8"  # palette
+      - "\U000F0BC2"  # script-text
+      - "\U000F06A9"  # robot
+      - "\U000F07D1"  # home-automation
+      - "\U000F0493"  # cog
+      - "\U000F009A"  # bell
+      - "\U000F0100"  # camera
+      - "\U000F07AE"  # cctv
+      - "\U000F078F"  # alarm-light
+      - "\U000F00ED"  # calendar
+      - "\U000F02D7"  # help-circle
+      - "\U000F0831"  # shape
+      - "\U000F0FB0"  # devices (fallback)
+
+# ── LVGL UI ──────────────────────────────────────────────────────────────────
+
+lvgl:
+  displays:
+    - main_display
+  touchscreens:
+    - main_touchscreen
+  rotation: 90
+  bg_color: 0x000000
+
+  widgets:
+    - obj:
+        id: root_obj
+        align: TOP_LEFT
+        bg_color: 0x000000
+        bg_opa: COVER
+        border_width: 0
+        radius: 0
+        width: 480
+        height: 320
+        pad_all: 0
+
+        widgets:
+
+          # Cerchio rosso — stato detection
+          - obj:
+              id: circle_detection
+              align: CENTER
+              width: 240
+              height: 240
+              bg_opa: TRANSP
+              border_width: 10
+              border_color: 0xFF0000
+              radius: 120
+              hidden: true
+
+          # Arc piccolo al centro — stato pending (trigger time)
+          - arc:
+              id: arc_pending
+              align: CENTER
+              width: 100
+              height: 100
+              bg_opa: TRANSP
+              border_width: 0
+              arc_color: 0x333333
+              arc_width: 8
+              indicator:
+                arc_color: 0xFF8800
+                arc_width: 8
+              min_value: 0
+              max_value: 100
+              value: 0
+              start_angle: 270
+              end_angle: 269
+              adjustable: false
+              hidden: true
+
+          # Cerchio bianco — stato dimming/selecting (sfondo dell'arco)
+          - obj:
+              id: circle_action
+              align: CENTER
+              width: 240
+              height: 240
+              bg_opa: TRANSP
+              border_width: 10
+              border_color: 0x333333
+              radius: 120
+              hidden: true
+
+          # Progress arc bianco in senso orario
+          - arc:
+              id: arc_progress
+              align: CENTER
+              width: 240
+              height: 240
+              bg_opa: TRANSP
+              border_width: 0
+              arc_color: 0x333333
+              arc_width: 10
+              indicator:
+                arc_color: 0xFFFFFF
+                arc_width: 10
+              min_value: 0
+              max_value: 100
+              value: 0
+              start_angle: 270
+              end_angle: 269
+              adjustable: false
+              hidden: true
+
+          # Logo (icona MDI) dell'entità, al centro del cerchio (detection/selection)
+          - label:
+              id: lbl_entity_icon
+              align: CENTER
+              text_font: mdi_icon
+              text_color: 0xFFFFFF
+              text: ""
+              hidden: true
+
+          # Nome device correntemente selezionato, sopra il cerchio
+          - label:
+              id: lbl_device_name
+              align: TOP_MID
+              y: 10
+              text_font: MONTSERRAT_24
+              text_color: 0xFFFFFF
+              text: ""
+              hidden: true
+
+          # Numero step grande al centro
+          - label:
+              id: lbl_step_number
+              align: CENTER
+              y: 0
+              text_font: MONTSERRAT_48
+              text_color: 0xFFFFFF
+              text: ""
+              hidden: true
+
+          # Nome step / entità sotto il cerchio (riservato per uso futuro)
+          - label:
+              id: lbl_step_name
+              align: CENTER
+              y: 100
+              text_font: MONTSERRAT_24
+              text_color: 0xAAAAAA
+              text: ""
+              hidden: true
