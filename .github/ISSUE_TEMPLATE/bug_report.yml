@@ -1,0 +1,61 @@
+name: Bug report
+description: Something in Superhome is broken or not behaving as documented
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve Superhome during the beta!
+        Before filing, please check the [Troubleshooting page](https://superhome.me/docs/troubleshooting) and search existing issues.
+
+        **Never post your license key here.** For license or account problems, email [support@superhome.me](mailto:support@superhome.me).
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment type
+      options:
+        - Home Assistant OS App
+        - Standalone Docker worker
+        - Master + worker cluster
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Superhome version
+      description: "In Home Assistant: Settings → Apps → Superhome. Or run `curl http://<host>:8765/api/status`."
+      placeholder: "0.1.17"
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Hardware
+      description: The machine Superhome runs on (and the worker hardware, if clustered).
+      placeholder: "Raspberry Pi 5 8GB / Intel NUC / ..."
+    validations:
+      required: true
+  - type: input
+    id: ha-version
+    attributes:
+      label: Home Assistant version
+      placeholder: "2026.6.1"
+  - type: input
+    id: camera
+    attributes:
+      label: Camera model and connection
+      placeholder: "TP-Link Tapo C210 via RTSP"
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead? If it is reproducible, list the steps.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: "Log tab of the Superhome app in Home Assistant, or `docker compose logs --tail=100` on a standalone worker. Paste the last ~50 lines around the problem. Remove anything you consider private."
+      render: shell

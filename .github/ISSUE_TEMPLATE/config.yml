@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and help
+    url: https://github.com/superhome-vision/superhome/discussions/categories/q-a
+    about: Setup help, camera questions, anything that is not a bug. Answers stay searchable for everyone.
+  - name: Ideas and feature requests
+    url: https://github.com/superhome-vision/superhome/discussions/categories/ideas
+    about: Propose improvements and vote on existing ideas.
+  - name: License, account or privacy
+    url: https://superhome.me/docs/support
+    about: Email support@superhome.me for anything involving your license key, account or personal data. Never post a license key publicly.
+  - name: Documentation
+    url: https://superhome.me/docs
+    about: Installation guides, camera setup, gesture reference and troubleshooting.
