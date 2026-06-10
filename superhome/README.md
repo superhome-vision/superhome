@@ -1,4 +1,4 @@
-# Superhome — Home Assistant App
+# Superhome: Home Assistant App
 
 Gesture-controlled home automation using your existing RTSP camera. 100% local, no cloud, no microphone.
 
@@ -8,7 +8,7 @@ Gesture-controlled home automation using your existing RTSP camera. 100% local, 
 
 1. Add this app repository to your Home Assistant. Two options:
    - **Button:** click the badge above and confirm. (On recent HA versions the
-     auto-fill dialog may not appear — if so, use the manual steps below.)
+     auto-fill dialog may not appear; if so, use the manual steps below.)
    - **Manual:** go to **Settings → Apps → Install app (App Store) → ⋮ (top right) →
      Repositories**, paste
      `https://github.com/superhome-vision/superhome` and click **Add**.
@@ -16,8 +16,20 @@ Gesture-controlled home automation using your existing RTSP camera. 100% local, 
 3. Get a free license at **[superhome.me](https://superhome.me)**.
 4. Paste your license key + RTSP URL in the **Configuration** tab and **Start**.
 
+## Support & feedback
+
+Superhome is in public beta and your reports shape what we fix and build next.
+
+- 🐛 Found a bug? [Open an issue](https://github.com/superhome-vision/superhome/issues/new/choose)
+- 💬 Questions or help: [Discussions Q&A](https://github.com/superhome-vision/superhome/discussions/categories/q-a)
+- 💡 Ideas and feature requests: [Discussions Ideas](https://github.com/superhome-vision/superhome/discussions/categories/ideas)
+- 🔑 License, account or privacy: [support@superhome.me](mailto:support@superhome.me) (never post your license key publicly)
+
+See the [Support & Feedback page](https://superhome.me/docs/support) for details on what to include in a bug report.
+
 ## Links
 
-- 🌐 Website — [superhome.me](https://superhome.me)
-- 📖 Documentation — [superhome.me/docs](https://superhome.me/docs)
-- 🔑 Get a license — [superhome.me/auth/login](https://superhome.me/auth/login)
+- 🌐 Website: [superhome.me](https://superhome.me)
+- 📖 Documentation: [superhome.me/docs](https://superhome.me/docs)
+- 🔑 Get a license: [superhome.me/auth/login](https://superhome.me/auth/login)
+- 🏠 Community thread: [Home Assistant forum](https://community.home-assistant.io/t/superhome-control-your-home-with-hand-gestures/1000911)
